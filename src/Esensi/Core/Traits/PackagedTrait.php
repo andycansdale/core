@@ -1,6 +1,7 @@
 <?php namespace Esensi\Core\Traits;
 
 use \Illuminate\Support\Facades\App;
+use \Illuminate\Support\Facades\Log;
 
 /**
  * Traits for helping with package configurations
@@ -12,14 +13,14 @@ trait PackagedTrait{
 
     /**
      * The package name
-     * 
+     *
      * @var string
      */
     protected $package = 'core';
 
     /**
      * The UI name
-     * 
+     *
      * @var string
      */
     protected $ui = 'public';
@@ -58,7 +59,7 @@ trait PackagedTrait{
         // Nest the view into the layout
         $view = App::make('view')->make($this->namespacing() . $line, $data);
         $this->layout->$name = $view;
-        
+
         return $view;
     }
 
@@ -76,7 +77,7 @@ trait PackagedTrait{
         $line = $this->namespacing() . 'core.views.' . $this->ui . '.modal';
         $this->layout = $this->namespacing() . $this->config($line);
         $this->setupLayout();
-        
+
         // Just return the response from the proxy call
         return $this->content($key, $data, $name);
     }
@@ -131,7 +132,18 @@ trait PackagedTrait{
         // Get the package namespace or default to the root
         $namespace = $loader->get('esensi::core.namespace', 'esensi::');
         $line = str_singular($this->package) . '.namespace';
-        return $loader->get($line, $namespace);
+
+        // Use the packaged namespace
+        if( $loader->has($namespace . $line) )
+        {
+            return $loader->get($namespace . $line);
+        }
+
+        // Use the global namespace or default to root namespace
+        else
+        {
+            $loader->get($line, $namespace);
+        }
     }
 
     /**
@@ -144,20 +156,58 @@ trait PackagedTrait{
     protected function language($key, array $replacements = [])
     {
         $namespace = 'esensi::';
-        $line = str_singular($this->package) . '.' .$key;
+        $package = str_singular($this->package);
+
+        //look for the key in the corresponding package, first local, then global
+        //if not in the package namespace, then look for it on the "core" package
+        //as it migh have the same message defined in a generic way
+
+        $line = $package . '.' .$key;
+        $lineCore = 'core' . '.' . $key;
         $loader = App::make('translator');
 
         // Use local namespaced package
+        Log::info("1: " . $namespace . $line);
+        Log::info("2: " . $line);
+        Log::info("3: " . $namespace . $lineCore);
+        Log::info("4: " . $lineCore);
+
         if( $loader->has($namespace . $line) )
         {
+            Log::info("1 Returning message for " . $namespace . $line);
             return $loader->get($namespace . $line, $replacements);
         }
 
         // Use global namespaced package
-        else
+        elseif ($loader->has($line))
         {
+            Log::info("2 Returning message for " . $line);
             return $loader->get($line, $replacements);
         }
+
+        //Use local namespaced "core" package
+        elseif ($loader->has($namespace . $lineCore, $replacements))
+        {
+            Log::info("3 Returning message for " . $namespace . $lineCore);
+            return $loader->get($namespace . $lineCore, $replacements);
+        }
+
+        //Use local "core" package
+        elseif ($loader->has($lineCore, $replacements))
+        {
+            Log::info("4 Returning message for " . $lineCore);
+            return $loader->get($lineCore, $replacements);
+        }
+
+        //not found in any place, just return global namespaced package
+        //so it produce the full key at least as message
+        else
+        {
+            Log::info("5 Returning message for " . $line);
+            return $loader->get($line, $replacements);
+        }
+
+
     }
 
     /**
