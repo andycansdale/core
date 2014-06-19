@@ -1,75 +1,16 @@
 <?php namespace Esensi\Core\Models;
 
-use \Esensi\Core\Contracts\EncryptingModelInterface;
-use \Esensi\Core\Contracts\HashingModelInterface;
-use \Esensi\Core\Contracts\PurgingModelInterface;
-use \Esensi\Core\Contracts\RelatingModelInterface;
-use \Esensi\Core\Contracts\ValidatingModelInterface;
-use \Esensi\Core\Traits\EncryptingModelTrait;
-use \Esensi\Core\Traits\HashingModelTrait;
-use \Esensi\Core\Traits\PurgingModelTrait;
-use \Esensi\Core\Traits\RelatingModelTrait;
-use \Esensi\Core\Traits\ValidatingModelTrait;
-use \Illuminate\Database\Eloquent\Model as Eloquent;
+use \Esensi\Model\Model as BaseModel;
 use \Illuminate\Support\Facades\Lang;
 use \Illuminate\Support\Str;
 
 /**
- * Default base model
+ * Base Model
  *
  * @author daniel <daniel@bexarcreative.com>
- * @see \Illuminate\Database\Eloquent\Model
- * @see \Esensi\Core\Contracts\EncryptingModelInterface
- * @see \Esensi\Core\Contracts\HashingModelInterface
- * @see \Esensi\Core\Contracts\PurgingModelInterface
- * @see \Esensi\Core\Contracts\RelatingModelInterface
- * @see \Esensi\Core\Contracts\ValidatingModelInterface
+ * @see \Esensi\Model\Model
  */
-class Model extends Eloquent implements
-    EncryptingModelInterface,
-    HashingModelInterface,
-    PurgingModelInterface,
-    RelatingModelInterface,
-    ValidatingModelInterface {
-
-    /**
-     * Make model validate attributes.
-     *
-     * This comes first even though it is out of alphabetical
-     * order because it is important that it is booted before
-     * hashing and purging traits.
-     *
-     * @see \Esensi\Core\Traits\ValidatingModelTrait
-     */
-    use ValidatingModelTrait;
-
-    /**
-     * Make model encrypt attributes
-     *
-     * @see \Esensi\Core\Traits\EncryptingModelTrait
-     */
-    use EncryptingModelTrait;
-
-    /**
-     * Make model hash attributes
-     *
-     * @see \Esensi\Core\Traits\HashingModelTrait
-     */
-    use HashingModelTrait;
-
-    /**
-     * Make model purge attributes
-     *
-     * @see \Esensi\Core\Traits\PurgingModelTrait
-     */
-    use PurgingModelTrait;
-
-    /**
-     * Make model use properties for model relationships
-     *
-     * @see \Esensi\Core\Traits\RelatingModelTrait
-     */
-    use RelatingModelTrait;
+class Model extends BaseModel {
 
     /**
      * The database table used by the model.
@@ -114,11 +55,18 @@ class Model extends Eloquent implements
     protected $dates = [];
 
     /**
-     * The attribute rules that model will validate against
+     * The default rules that the model will validate against.
      *
      * @var array
      */
-    public $rules = [];
+    protected $rules = [];
+
+    /**
+     * The rulesets that the model will validate against.
+     *
+     * @var array
+     */
+    protected $rulesets = [];
 
     /**
      * The attributes that can be full-text searched
@@ -207,25 +155,6 @@ class Model extends Eloquent implements
     ];
 
     /**
-     * Dynamically call methods
-     *
-     * @param  string $method
-     * @param  array  $parameters
-     * @return mixed
-     */
-    public function __call( $method, $parameters )
-    {
-        // Dynamically call the relationship
-        if ( $this->isRelationship( $method ) )
-        {
-            return $this->callRelationship( $method );
-        }
-
-        // Default Eloquent dynamic caller
-        return parent::__call($method, $parameters);
-    }
-
-    /**
      * Dynamically retrieve attributes
      *
      * @param  string $key
@@ -233,28 +162,6 @@ class Model extends Eloquent implements
      */
     public function __get( $key )
     {
-        // Dynamically get the relationship
-        if ( $this->isRelationship( $key ) )
-        {
-            // Use the relationship already loaded
-            if ( array_key_exists( $key, $this->getRelations() ) )
-            {
-                return $this->getRelation( $key );
-            }
-
-            return $this->getRelationshipFromMethod($key, camel_case($key));
-        }
-
-        // Dynamically get the encrypted attributes
-        if ( $this->isEncryptable( $key ) )
-        {
-            // Decrypt only encrypted values
-            if( $this->isEncrypted( $key ) )
-            {
-                return $this->getEncryptedAttribute( $key );
-            }
-        }
-
         // Dynamically get time since attributes
         $normalized = Str::snake( $key );
         $attribute = str_replace(['time_since_', 'time_till_'], ['', ''], $normalized);
@@ -277,31 +184,8 @@ class Model extends Eloquent implements
             return $date->diffForHumans();
         }
 
-        // Default Eloquent dynamic getter
+        // Default dynamic getter
         return parent::__get( $key );
-    }
-
-    /**
-     * Dynamically set attributes
-     *
-     * @param  string $key
-     * @param  mixed $value
-     * @return mixed
-     */
-    public function __set( $key, $value )
-    {
-        // Dynamically set the encrypted attributes
-        if ( $this->isEncryptable( $key ) )
-        {
-            // Encrypt only decrypted values
-            if ( $this->isDecrypted( $key ) )
-            {
-                return $this->setEncryptingAttribute( $key, $value );
-            }
-        }
-
-        // Default Eloquent dynamic setter
-        return parent::__set( $key, $value );
     }
 
     /**
