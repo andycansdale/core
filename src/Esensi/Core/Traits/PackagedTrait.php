@@ -154,13 +154,13 @@ trait PackagedTrait{
         // Get the package namespace or default to the root
         $namespace = $loader->get('esensi::core.namespace', 'esensi::');
         $line = str_singular($this->package) . '.namespace';
-        
+
         // Use the packaged namespace
         if( $loader->has($namespace . $line) )
         {
             return $loader->get($namespace . $line);
         }
-        
+
         // Use the global namespace or default to root namespace
         else
         {
@@ -177,59 +177,29 @@ trait PackagedTrait{
      */
     protected function language($key, array $replacements = [])
     {
-        $namespace = 'esensi::';
-        $package = str_singular($this->package);
-
-        //look for the key in the corresponding package, first local, then global
-        //if not in the package namespace, then look for it on the "core" package
-        //as it migh have the same message defined in a generic way
-
-        $line = $package . '.' .$key;
-        $lineCore = 'core' . '.' . $key;
+        $namespace = $this->namespacing();
+        $line = str_singular($this->package) . '.' .$key;
         $loader = App::make('translator');
 
         // Use local namespaced package
-        Log::info("1: " . $namespace . $line);
-        Log::info("2: " . $line);
-        Log::info("3: " . $namespace . $lineCore);
-        Log::info("4: " . $lineCore);
-
         if( $loader->has($namespace . $line) )
         {
-            Log::info("1 Returning message for " . $namespace . $line);
             return $loader->get($namespace . $line, $replacements);
         }
 
         // Use global namespaced package
-        elseif ($loader->has($line))
+        elseif( $loader->has($line) )
         {
-            Log::info("2 Returning message for " . $line);
             return $loader->get($line, $replacements);
         }
 
-        //Use local namespaced "core" package
-        elseif ($loader->has($namespace . $lineCore, $replacements))
-        {
-            Log::info("3 Returning message for " . $namespace . $lineCore);
-            return $loader->get($namespace . $lineCore, $replacements);
-        }
-
-        //Use local "core" package
-        elseif ($loader->has($lineCore, $replacements))
-        {
-            Log::info("4 Returning message for " . $lineCore);
-            return $loader->get($lineCore, $replacements);
-        }
-
-        //not found in any place, just return global namespaced package
-        //so it produce the full key at least as message
+        // Load the core as default
         else
         {
-            Log::info("5 Returning message for " . $line);
-            return $loader->get($line, $replacements);
+            // Load the language files because Laravel doesn't seem to have loaded them by now
+            $loader->addNamespace('esensi', __DIR__ . '/../../../lang');
+            return $loader->get('esensi::core.' . $key, $replacements);
         }
-
-
     }
 
     /**
