@@ -74,11 +74,27 @@ trait PackagedTrait{
     protected function modal($key, array $data = [], $name = null)
     {
         // Change default layout to modal layout
-        $line = $this->namespacing() . 'core.views.' . $this->ui . '.modal';
-        $this->layout = $this->namespacing() . $this->config($line);
+        $namespace = $this->namespacing();
+        $line = $namespace . 'core.views.' . $this->ui . '.modal';
+
+        //Log::info("modal line = " . $line);
+        //Log::info("modal config line = " . $this->config($line));
+
+        if (empty($this->config($line)))
+        {
+            $namespace = "esensi::";
+            $line =  $namespace . 'core.views.' . $this->ui . '.modal';
+            //Log::info("new modal line = " . $line);
+        }
+
+        $this->layout = $namespace . $this->config($line);
+
+        //Log::info("modal layout = " . $this->layout);
+
         $this->setupLayout();
 
         // Just return the response from the proxy call
+        //Log::info("key = " . $key);
         return $this->content($key, $data, $name);
     }
 
@@ -101,20 +117,26 @@ trait PackagedTrait{
         $line = str_singular($this->package) . '.' .$key;
 
         // Use local namespaced package
+        //Log::info("searching config for '" . $namespace . $line . "'");
+        //Log::info("searching config for '" . $namespace . $key . "'");
+        //og::info("searching config for '" . $line . "'");
         if( $loader->has($namespace . $line) )
         {
+            //Log::info("Found '" . $namespace . $line . "'");
             return $loader->get($namespace . $line);
         }
 
         // Use package namespaced package
         elseif( $loader->has($namespace . $key) )
         {
+            //Log::info("Found '" . $namespace . $key . "'");
             return $loader->get($namespace . $key);
         }
 
         // Use global namespaced package
         else
         {
+            //      Log::info("Found '" . $line . "'");
             return $loader->get($line, $default);
         }
     }
